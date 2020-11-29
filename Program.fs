@@ -8,11 +8,12 @@ open Microsoft.AspNetCore.Http
 let predict inputStream =
     let resultPrefix = "result: "
 
-    CreateProcess.fromRawCommandLine "python" "./PythonModel/model1.py"
+    CreateProcess.fromRawCommandLine "python" "./PythonModel/model2.py"
     |> CreateProcess.withStandardInput (UseStream (false, inputStream))
     |> CreateProcess.redirectOutput
+    |> CreateProcess.withOutputEvents Trace.trace Trace.traceError
     |> CreateProcess.map (fun processResult -> processResult.Result.Output)
-    |> CreateProcess.withTimeout (TimeSpan.FromSeconds(1.))
+    |> CreateProcess.withTimeout (TimeSpan.FromSeconds(10.))
     |> Proc.run
     |> String.splitStr Environment.NewLine
     |> Seq.find (fun line -> line.StartsWith(resultPrefix))
