@@ -12,16 +12,22 @@ let predict inputStream =
     |> CreateProcess.withStandardInput (UseStream (false, inputStream))
     |> CreateProcess.redirectOutput
     |> CreateProcess.map (fun processResult -> processResult.Result.Output)
+    |> CreateProcess.withTimeout (TimeSpan.FromSeconds(1.))
     |> Proc.run
     |> String.splitStr Environment.NewLine
     |> Seq.find (fun line -> line.StartsWith(resultPrefix))
     |> String.replaceFirst resultPrefix String.Empty
 
 let handlePredictionRequest (context : HttpContext) =
-    let prediction = predict context.Request.Body
+    try
+        let prediction = predict context.Request.Body
 
-    context.SetContentType ("application/json")
-    context.WriteStringAsync prediction
+        context.SetContentType ("application/json")
+        context.WriteStringAsync prediction
+    with :? TimeoutException ->
+        context.SetStatusCode StatusCodes.Status504GatewayTimeout
+        context.WriteJsonAsync {| error = "model timeout" |}
+
 
 let webApp =
     route "/predict" >=> handleContext(handlePredictionRequest)
